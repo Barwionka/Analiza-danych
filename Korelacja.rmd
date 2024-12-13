@@ -1,0 +1,159 @@
+---
+title: "Analiza danych - sprawozdanie 3"
+author:
+  name: Kinga Głuc, Monika Król, Alicja Małkowska
+  affiliation: Politechnika Krakowska
+subtitle: Korelacja
+output:
+  html_document:
+    theme: readable
+    df_print: paged
+    toc: true
+    toc_float: true
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+```
+
+# Zadanie
+
+W pliku *sp3.csv* znajdują się dane dotyczące ilości tweetów napisanych przez prezesa pewnej firmy danego dnia oraz cenę otwarcia akcji tej firmy tego dnia. Czy cena otwarcia ma wpływ na ilość tweetow? Jeżeli tak to jaki? Sprawdź istotność statystyczną współczynnika korelacji na poziomie istotności $\alpha=0.05$ za pomocą metody parametrycznej. Wyznacz przedział ufności za pomocą metody bootstrap oraz wykonaj test permutacyjny. Porównaj otrzymane wyniki.
+
+```{r, message=FALSE, warning=FALSE, error=FALSE}
+dane <- read_csv('sp3.csv')
+dane
+```
+
+Chcemy sprawdzić, czy cena otwarcia ma wpływ na ilość tweetów. Zaczniemy od sformułowania hipotez. Za hipotezę zerową przyjmujemy, że nie ma korelacji między liczbą tweetów a ceną otwarcia akcji, a za hipotezę alternatywną, że taka korelacja istnieje. Czyli:
+\[H_0: \rho=0\\ H_1:\rho \neq 0\]
+
+Aby to sprawdzić zaczniemy od wyznaczenia współczynnika korelacji. Dany jest on wzorem
+\[ r_{xy} = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^n (x_i - \bar{x})^2}\sqrt{\sum_{i=1}^n (y_i - \bar{y})^2}}. \]
+
+```{r}
+sample_cor <- cor(dane$Tweets, dane$Open)
+sample_cor
+```
+
+Można powiedzieć, że korelacja jest umiarkowana. Chcemy sprawdzić, czy jest ona przypadkowa czy nie. Na to odpowiada parametryczny test na istotność statystyczną współczynnika korelacji. Za pomocą histogramu sprawdzamy, czy próby mają rozkład normalny.
+
+```{r}
+dane1 <- dane %>% pivot_longer(cols = 1:2, names_to = 'Zmienna', values_to = 'Wartość')
+ggplot(dane1, aes(x = Wartość)) +
+  geom_histogram(bins = 15, fill = 'hotpink') +
+  facet_wrap(~Zmienna, scales = 'free') +
+  labs(title = "Histogramy zmiennych", x = "Wartość", y = "Liczba wystąpień") +
+  theme_minimal()
+```
+
+Wykres próby Open jest niesymetryczny i ma grube ogony, a dodatkowo jest prawostronnie skośny. Sugeruje to, że dane mogą nie pochodzić z rozkładu normalnego. Wykres Tweets jest bardziej zbliżony do rozkładu normalnego niż wykres Open. Ma on krótkie i symetryczne ogony, raczej nie jest skośny. Jest bardziej symetryczny niż wykres Open, ale widoczne jest wcięcie w okolicach średniej. Nie do końca możemy zakładać, że te próby mają rozkład normalny. Pomimo tego, że próby nie wyglądają jakby pochodziły z rozkładu normalnego, to na potrzeby testu zakładamy, że obie próby mają rozkład normalny. 
+
+Spróbujemy tesem Saphiro-Wilka:
+
+Hipotezy:
+
+H0: Dane pochodzą z rozkładu normalnego.
+
+H1: Dane nie pochodzą z rozkładu normalnego.
+
+```{r}
+shapiro.test(dane$Tweets)
+```
+
+```{r}
+shapiro.test(dane$Open)
+```
+W przypadku Tweets możemy mówić o rozkładzie normalnym. Ponieważ p-value dla Open jest mniejsze niż 0.05, to próba z kolumny Open nie ma rozkładu normalnego.
+
+
+Statystyka testowa ma rozkład t-Studenta o $n-2$ stopniach swobody i dana jest wzorem
+\[ t = \frac{r}{\sqrt{1-r^2}}\sqrt{n-2}. \]
+
+Wykonujemy test.
+```{r}
+cor.test(dane$Tweets, dane$Open)
+```
+Z testu odczytujemy wartość p-value wynoszącą około $0.000005671$. Przyjęty był poziom istotności $\alpha=0.05$. P-value jest zatem zdecydowanie mniejsze niż przyjęta $\alpha$. Oznacza to, że mamy wystarczające dowody, aby odrzucić hipotezę zerową i przyjąć hipotezę alternatywną. Zatem na mocy powyższego testu uznajemy, że zmienne są skorelowane, a więc, że cena otwarcia akcji ma wpływ na liczbę tweetów. 
+
+Zmienna Tweets jest umiarkowanie do silnie skorelowana z Open, i ta korelacja jest statystycznie istotna. Przedział ufności wynosi od 0.486 do 0.854. Przedział ufności wskazuje, że prawdziwa korelacja w populacji jest dodatnia i prawdopodobnie nie jest równa zeru.
+
+Przyjrzyjmy się przedziałowi ufności wygenerowanemu poprzez metodę bootstrap.
+
+Na początku ustawiamy wielkość ziarna w próbkach, aby wyniki otrzymane przy kilkakrotnej kompilacji były jednakowe. Decydujemy się utworzyć 1000 prób boostrapowych na podstawie danych z dołączonego pliku. W poniższym kodzie używamy pętli "for" dla losowania danych do kolejnych prób. Na końcu wyznaczamy kwantyle 2.5% i 97.5%, aby uzyskać przedział ufności o żądanym poziomie.
+
+
+```{r}
+set.seed(100)
+bootstrap_samples <- 1000
+boostrap <- numeric(bootstrap_samples)
+
+for (i in 1:bootstrap_samples) {
+  new_samples <- sample(1:nrow(dane), replace = TRUE)
+  boostrap[i] <- cor(dane$Tweets[new_samples], dane$Open[new_samples])
+}
+
+bootstrap_quantile <- quantile(boostrap, c(0.025, 0.975))
+bootstrap_quantile 
+
+```
+
+Otrzymany wynik: (0.4886716, 0.8741568) to przedział ufności dla współczynnika korelacji na poziomie 95%. To oznacza, że z 95% pewnością prawdziwa korelacja między zmiennymi w populacji znajduje się w tym zakresie. Ponieważ przedział ufności nie zawiera 0, to możemy wnioskować, że istnieje istotna statystycznie dodatnia korelacja między ilością tweetów a ceną otwarcia akcji. Oznacza to, że gdy cena otwarcia rośnie, to ilość tweetów rośnie, a jeśli cena otwarcia maleje, to ilość tweetów maleje.
+
+Na poniższym histogramie zaznaczamy zielonymi liniami krańce przedziału ufności wyznaczonego metodą bootstrap. Niebieską linią zaznaczamy korelację z oryginalnej próby.
+
+```{r}
+ggplot(data=tibble(cor=boostrap), aes(x=cor)) + geom_histogram(bins=100) +
+  geom_vline(xintercept = bootstrap_quantile , color = "green", linewidth = 1.5) + geom_vline(xintercept = sample_cor, color = "blue", linewidth=1.25) +
+  labs(x = "Wartość współczynnika", y = "Liczba wystąpień", title = "Histogram próby bootstrapowej na współczynnik korelacji")
+```
+
+Na powyższym histogranie widać, że korelacja z oryginalnej próby zawiera się w przedziale ufności dla współczynnika korelacji na poziomie 95%. Warto zaznaczyć, że nie zawsze oryginalna korelacja będzie zawierać się w wyznaczonym przedziale ufności.
+
+Przechodzimy do testu permutacyjnego. Zakładamy, że korelacja w danych jest przypadkowa. Tworzymy 1000 prób. Permutujemy kolumnę z ceną otwarcia akcji pewnej firmy tego dnia, a kolumnę z liczbą tweetów napisanych przez prezesa tej firmy danego dnia pozostawiamy bez zmian.
+
+```{r}
+set.seed(100)
+k <- 1000
+n <- length(dane$Tweets)
+perm <- rep(0,k)
+for(i in 1:k){
+  perm[i] <- cor(dane$Tweets, sample(dane$Open, n, replace=FALSE))
+}
+```
+
+```{r}
+perm_quantile <- quantile(perm, c(0.025,0.975))
+perm_quantile
+```
+
+Dostajemy przedział (-0.3445578;  0.3757697). Widać od razu, że w przedziale tym nie zawiera się korelacja z oryginalnej próby, to jest 0.7170252. Sugeruje to, że bardzo mało prawdopodobne jest uzyskanie takiej korealcji przypadkowo. Możemy wnioskować, że cena otwarcia akcji tej firmy tego dnia i liczba tweetów napisanych przez prezesa tej firmy danego dnia nie są niezależne.
+
+Na poniższym histogramie zaznaczamy czerwonymi liniami krańce przedziału ufności wyznaczonego metodą testu permutacyjnego. Niebieską linią zaznaczamy korelację z oryginalnej próby.
+
+
+```{r}
+ggplot(data=tibble(cor=perm), aes(x=cor)) + geom_histogram(bins=20) +
+  geom_vline(xintercept = perm_quantile, color = "red", linewidth = 1.5) + 
+  geom_vline(xintercept = sample_cor, color = "blue", linewidth = 1.25) +
+  labs(x = "Wartość współczynnika", y = "Liczba wystąpień", title = "Histogram próby permutacyjnej na współczynnik korelacji")
+```
+
+Przedział otrzymany za pomocą testu permutacyjnego to przedział możliwych wartości współczynnika korelacji w próbie, przy założeniu niezależności zmiennych. Współczynnik otrzymany w oryginalnej próbie nie znajduje się
+w przedziale otrzymanym metodą permurtacyjną, więc mamy dowody na to, że zmienne nie są niezależne. Wnioskujemy, że cena otwarcia ma wpływ na liczbę tweetów. 
+
+WNIOSKI:
+
+W teście parametrycznym na istotność statystyczną współczynnika korelacji na poziomie istotności $\alpha=0.05$ otrzymaliśmy p-value dużo mniejsze niż przyjęta $\alpha$. Co za tym idzie, przyjęliśmy hipotezę alternatywną mówiącą, że zmienne są skorelowane i cena otwarcia ma wpływ na ilość tweetów.
+
+W metodzie bootstrap otrzymaliśmy, że $(0.4886716; 0.8741568)$ to przedział ufności dla współczynnika korelacji na poziomie $95%$. Ponieważ przedział nie zawiera $0$, to dodatnia korelacja między liczbą tweetów a ceną otwarcia jest istotna statystycznie.  
+
+W metodzie testu permutacyjnego otrzymaliśmy przedział $(-0.3445578; 0.3757697)$, w którym nie zawierała się obserwowana korelacja $0.7170252$. Bardzo mało prawdopodobne jest, by uzyskać taką korelację przypadkowo, więc wnioskujemy, że cena otwarcia ma wpływ na liczbę tweetów.
+
+
+Powyższe wyniki się pokrywają. W każdej z zastosowanych metod otrzymaliśmy istotną statystycznie korelację. Dodatkowo, metoda bootstrap dostarczyła informacji, że korelacja ta jest dodatnia. Sugeruje to, że cena otwarcia akcji ma istotny wpływ na ilość tweetów, a wraz ze wzrostem ceny otwarcia, rośnie ilość tweetów.
+
+
+
+
+

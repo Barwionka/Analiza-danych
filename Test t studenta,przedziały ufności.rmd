@@ -1,0 +1,201 @@
+---
+title: "Analiza Danych - Sprawozdanie 2"
+author:
+  name: Król Monika, Małkowska Alicja, Głuc Kinga
+  affiliation: Politechnika Krakowska
+subtitle: Test t studenta, przedziały ufności, bootstrap.
+output:   
+  html_document:
+    theme: readable
+    df_print: paged
+    toc: true
+    toc_float: true
+---
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggpubr)
+```
+
+# Zadanie 1
+
+Firma A produkuje telefony komórkowe. Na pudełku nowego modelu S firmy A widnieje napis, że bateria wytrzymuje średnio 48 godzin. Nie uwierzyliśmy firmie A i zostawiliśmy na 42 różnych telefonach modelu S włączone wideo tak długo, aż się rozładowały. W pliku *zad2.csv* znajdują się dane zebrane przez nas podczas tego eksperymentu. Uzasadnij, że możesz użyć testu t i użyj testu t, aby zweryfikować, czy firma A nie okłamuje konsumentów.
+
+```{r, message=FALSE}
+telefony <- read_csv("zad2.csv")
+telefony
+```
+Zaczynamy od założeń:
+
+1) Próba ma rozkład normalny
+Spróbujemy testem Shapiro-Wilka.
+
+Hipotezy:
+
+H0: Dane pochodzą z rozkładu normalnego.
+
+H1: Dane nie pochodzą z rozkładu normalnego.
+
+```{r}
+shapiro.test(telefony$durability)
+```
+
+p-value > 0.05, więc możemy uznać, że dane mają rozkład normalny.
+
+2) Próba jest niezależna
+
+Niezależność próby sprawdzimy analizą wykresów scatter plot.
+
+```{r}
+plot(telefony$number, telefony$durability)
+
+```
+Nie widać zależności między zmiennymi, więc zakładamy, że próby są niezależne.
+
+Musimy zbadać, czy na podstawie próby przez nas zebranej możemy powiedzieć coś o wszystkich bateriach w nowych modelach S. W tym celu zakładamy hipotezę zerową i formułujemy hipotezę alternatywną. Za hipotezę zerową przyjmujemy stwierdzenie, że prawdziwa średnia wytrzymałość baterii modelu S wynosi 48h, czyli $H_0 : m = 48$. Natomiast hipotezą alternatywną będzie to, że prawdziwa średnia wytrzymałość baterii modelu S nie wynosi 48h, czyli $H_1 : m \neq 48$. Zakładamy, że poziom istotności $\alpha = 0.05$.
+
+W naszym zadaniu nie znamy wariancji, więc musimy użyć oszacowania wariancji z próby. Wówczas zmienna
+
+\[ T = \frac{\frac{1}{n}\sum_{i=1}^n X_i - m}{\frac{s}{\sqrt{n}}} \sim t(n-1) \]
+
+ma rozkład $t$ studenta o $n-1$ stopniach swobody. Rozkład $t$ jest symetryczny względem zera,  zatem $P(|Z|>|z|) = P(Z > |z|) + P(Z < - |z|) = 2P(|Z| >|z|)$. Możemy więc porównać naszą wartość $|z|$ z kwantylami $0.025$ i $0.975$ rozkładu $t(n-1)$, aby otrzymać informację o tym, czy nasza obserwacja jest typowa czy nie. Stosując powyższe informacje w naszym zadaniu mamy:
+
+\[ T = \frac{\frac{1}{42}\sum_{i=1}^{42} X_i - 48}{\frac{s}{\sqrt{42}}} \sim t(41) \]
+
+```{r,echo=FALSE}
+n <- length(telefony$durability)
+nden <- tibble(values = seq(-12,12,0.1)) %>% mutate(density = dt(values, n-1))
+sr_bateria <- mean(telefony$durability)
+Z_odchylenie <- sqrt((1/(n-1))*sum((telefony$durability-sr_bateria)^2))
+m0 <- 48
+T <- (sr_bateria - m0)/(Z_odchylenie/sqrt(n))
+ggplot(data = nden, aes(x=values, y=density)) + geom_area(alpha = 0.3, color='blue') + geom_vline(xintercept=qt(0.025, n-1), linetype='dashed', color='red') + geom_vline(xintercept=qt(0.975, n-1), linetype='dashed', color='red') + geom_vline(xintercept=T, color='green') + ggtitle("Obszary decyzyjne dla testu t studenta")
+```
+```{r}
+paste("Kwantyl 0.025:", round(qt(0.025, df= (n-1)),2), "Kwantyl 0.975:", round(qt(0.975, df = (n-1)),2), "Nasza wartość z próby:", round(T,2))
+```
+Na powyższym wykresie czerwonymi pionowymi liniami zaznaczone są kwantyle 0.025 oraz 0.975. Zielona pionowa linia to wynik t-testu.
+
+Wynik t-testu (10.35) jest znacznie większy od wartości krytycznych dla kwantyli 0.025 (-2.02) i 0.975 (2.02). Na wykresie widać, że wynik t-testu znajduje się poza przedziałem wyznaczonym przez kwantyle 0.025 i 0.975. 
+
+Przeprowadzamy test $t$ studenta, aby sprawdzić $p$-value.
+Jeśli $p$-value wyjdzie większe niż ustalona $\alpha$, to nie odrzucimy hipotezy zerowej i nie będziemy mieli podstaw, by nie uznać, że prawdziwa średnia wytrzymałość baterii nowego telefonu to 48h. Wtedy nie jesteśmy w stanie stwierdzić, czy firma A okłamuje klientów.
+Jeśli $p$-value wyjdzie mniejsze niż ustalona $\alpha$, to odrzucimy hipotezę zerową i przyjmiemy hipotezę alternatywną. Inaczej mówiąc, uznamy, że prawdziwa średnia wytrzymałość baterii nowego telefonu to nie jest 48h. Wtedy wiemy, że firma A okłamuje klientów.
+
+```{r}
+T
+t.test(telefony$durability, m=48)
+```
+Widzimy, że $p$-value równe w przybliżeniu $5.301 \cdot 10^{-13}$ jest dużo mniejsze niż założony poziom istotności $\alpha = 0.05$, więc mamy wystarczające dowody, by odrzucić hipotezę $H_0 : m = 48$ na rzecz hipotezy alternatywnej $H_1 : m \neq 48$. Oznacza to, że firma A okłamuje konsumentów. T-test mówi nam również, że 95% przedział ufności to (51.45556; 53.13110) h, a średnia wartość trwałości baterii telefonu S w analizowanej próbce wynosi 52.29333 h. 
+
+# Zadanie 2
+
+Firma B produkuje czekoladę. Po latach zarząd postanowił, że zmienią opakowanie ich czekolady, co na pewno zwiększy sprzedaż. W pliku *zad3t.csv* znajdują się dane ze sprzedaży czekolady z nowym opakowaniem w jednym ze sklepów w jednym z dużych polskich miast oraz dane ze sprzedaży czekolady ze starym opakowaniem w jednym ze sklepów w jednym z dużych polskich miast. Używając testu t studenta sprawdź czy zarząd miał racje i nowe opakowanie zwiększyło sprzedaż.
+
+```{r, message=FALSE}
+czekolada <- read_csv("zad3t.csv")
+czekolada
+```
+
+Należy zacząć od przygotowania danych do pracy. 
+
+```{r}
+czekolada1 <- czekolada %>% pivot_wider(names_from = pack, values_from = sold, values_fn = list) %>% unnest(everything())
+print(czekolada1)
+```
+Chcemy obliczyć statystykę $t$. Zaczniemy od sprawdzenia, czy dane w kolumnie new_pack i w kolumnie old_pack są równoliczne.
+
+
+```{r}
+length(czekolada1$new_pack)==length(czekolada1$old_pack)
+```
+
+Zatem dane są równoliczne.
+
+Normalność prób sprawdzimy testem Shapiro-Wilka.
+
+Hipotezy:
+
+H0: Dane pochodzą z rozkładu normalnego.
+
+H1: Dane nie pochodzą z rozkładu normalnego.
+
+```{r}
+shapiro.test(czekolada1$new_pack)
+```
+
+```{r}
+shapiro.test(czekolada1$old_pack)
+```
+W obu przypadkach p-value > 0.05, więc zakładamy, że obie próby pochodzą z rozkładów normalnych. Sprawdzimy też korelację, by wiedzieć, czy próby są niezależne.
+
+```{r}
+cor(czekolada1$new_pack, czekolada1$old_pack)
+```
+Korelacja jest bliska 0, więc zakładamy, że zmienne są niezależne.
+
+Chcąc skonstruować statystykę $t$, musimy skorzystać z poprawki Welcha, która umożliwia skonstruowanie statystyki $t$ dla prób, które nie mają jednakowych wariancji lub wielkości.
+
+Po poprawce Welcha, statystyka $t$ przyjmuje postać:
+\[ t = \frac{(\bar{X_1} - \bar{X_2}) - (\mu_1-\mu_2)}{s_\Delta}, \] gdzie
+\[ s_\Delta = \sqrt{\frac{s^2_1}{n_1} + \frac{s_2^2}{n_2}}. \]
+
+Ustalamy poziom istotności $\alpha=0.05,$ i obliczamy liczbę stopni swobody korzystając ze wzoru \[ df = \frac{\left( \frac{s_1^2}{n_1} + \frac{s_2^2}{n_2} \right)^2}{ \frac{\left( \frac{s_1^2}{n_1} \right)^2}{n_1 - 1} + \frac{\left( \frac{s_2^2}{n_2} \right)^2}{n_2 - 1}}.\] (w kodzie niżej)
+
+Chcemy zweryfikować, czy zmiana opakowania czekolady miała wpływ na zwiększenie sprzedaży. W tym celu zakładamy hipotezę zerową i formułujemy hipotezę alternatywną. Za hipotezę zerową przyjmujemy stwierdzenie, że średnia ilość sprzedaży czekolady z nowym opakowaniem nie różni się od średniej ilości sprzedaży czekolady ze starym opakowaniem. Natomiast hipotezą alternatywną będzie to, że zmiana opakowania ma wpływ na zwiększenie ilości sprzedaży. Przez $x_1$ oznaczymy ilość sprzedaży czekolad w nowym opakowaniu, a przez $x_2$ ilość sprzedaży czekolad w starym opakowaniu. Odpowiednio $\mu_1$ oznacza średnią sprzedaż nowych opakowań, a $\mu_2$ średnią sprzedaż starych opakowań.
+\[ H_0: \mu_1 = \mu_2, \\ H_1: \mu_1 > \mu_2.\]
+
+Jeśli $p$-value wyjdzie większe niż ustalona $\alpha$, to nie odrzucimy hipotezy zerowej i nie będziemy mieli podstaw, by nie uznać, że zmiana opakowania nie miała wpływu na sprzedaż czekolady.
+Jeśli $p$-value wyjdzie mniejsze niż ustalona $\alpha$, to odrzucimy hipotezę zerową i przyjmiemy hipotezę alternatywną, czyli uznamy, że zmiana opakowania czekolady miała istotny wpływ na zwiększenie ilości sprzedaży czekolady. 
+
+Ponieważ założyliśmy w hipotezie zerowej, że $\mu_1 = \mu_2,$ to $\mu_1 - \mu_2 = 0,$ a zatem wzór na statystykę $t$ przyjmuje postać: 
+
+\[ t = \frac{(\bar{X_1} - \bar{X_2})}{s_\Delta}.\] 
+
+```{r}
+mean_new <- mean(czekolada1$new_pack)
+mean_old <- mean(czekolada1$old_pack)
+n_new <- length(czekolada1$new_pack)
+n_old <- length(czekolada1$old_pack)
+var_new <- var(czekolada1$new_pack)
+var_old <- var(czekolada1$old_pack)
+alpha=0.05
+
+t <- (mean_new - mean_old)/sqrt(var_new/n_new + var_old/n_old)
+df <- (var_new/n_new + var_old/n_old)**2/(((var_new/n_new)**2)/(n_new-1)+((var_old/n_old)**2)/(n_old-1))
+pvalue <- 1-pt(abs(t), df)
+t
+df
+pvalue
+```
+
+Teraz wykonamy test t-Studenta za pomocą funkcji t.test.
+
+```{r}
+t.test(czekolada1$new_pack, czekolada1$old_pack, alternative="greater")
+```
+
+Wyniki obliczone przez nas zgadzają się z wynikami funkcji t.test.
+
+Z testu t-Studenta możemy odczytać różne wartości, np. średnia sprzedaż nowych opakowań czekolady wyniosła około 216.8387, starych opakowań około 194.2903, liczbę stopni swobody $df=60$, 95% przedział ufności (12.55439, inf) czy statystykę $t=3,7693$. Nas interesuje jednak najbardziej fakt, że wartość $p$-value wyniosła 0.000188, czyli zdecydowanie mniej niż przyjmowany poziom istotności $\alpha=0.05$. Zatem po porównaniu tych dwóch liczb, na mocy testu, odrzucamy hipotezę zerową i przyjmujemy hipotezę alternatywną, a więc stwierdzamy, że zmiana opakowania czekolady miała istotny wpływ na zwiększenie ilości sprzedaży. Zarząd miał rację.
+
+
+# Wnioski:
+
+## Zadanie 1.
+Podsumowując, wyniki otrzymane z testu t-studenta, wykonanego dla zweryfikowania, czy firma A nie okłamuje konsumentów prezentują się następująco:
+
+W tym zadaniu naszym celem było sprawdzenie, czy posiadamy wystarczajaco dowodów, aby przypuszczać, że podawane przez producenta 48h, jako czas pracy baterii, jest nieprawdziwy. Z analizy przeprowadzonej z wykorzystaniem testu t-studenta wynika, że producent okłamuje konsumentów. Uzyskana średnia wytrzymałość baterii to 52.29333 godzin. Przedział ufności 95% z testu t-Studenta jest z kolei równy  : (51.45556; 53.13110), a $p$-value z testu t-Studenta wynosi $5.301 \cdot 10^{-13}$.
+
+Interpretacja otrzymanego wyniku pozwala na podejrzenia, że średnia wytrzymałość baterii jest wyższa niż podawane przez producenta 48 godzin.
+
+
+## Zadanie 2:
+Kolejno przypomnijmy również wyniki testu t-studenta dotyczące średniej liczby sprzedaży nowych i starych opakowań.
+
+Średnia sprzedaż nowych opakowań wyniosła 216.8387, z kolei średnia sprzedaż starych opakowań była równa 194.2903. Otrzymany przedział ufności 95% dla różnicy z testu t-Studenta to (12.55439, inf), a $p$-value z testu t-Studenta: 0.000188
+
+Z powyższych danych możemy wywnioskować, że przeprowadzona analiza wskazuje na pozytywny efekt zmiany opakowań na sprzedaż produktu. 
+
+

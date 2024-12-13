@@ -1,0 +1,131 @@
+---
+title: "Iloraz szans"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+Jako przykład użyjemy danych na temat dziennej zmienności (stóp zwrotu w procentach) indeksu giełdowego S&P 500 w okresie od 2001 do 2005 roku.
+```{r}
+require(ISLR)
+Smarket
+```
+W tabelce mamy podane: rok, procentowe stopy zwrotu z ostatnich kilku dni, liczbę akcji, które zostały sprzedane w danym dniu (wolumen), procentową stopę zwrotu na dany dzień oraz kierunek (spadek, wzrost), który określa czy na dany dzień rynek miał dodatnią czy ujemną stopę zwrotu.
+
+Dopasowujemy model regresji logistycznej. Zmienną objaśnianą jest Direcion (kierunek), która z prawdopodobieństwem $0 < \pi(x) < 1$, zależnym od wartości zmiennej objaśniającej typu ciągłego X przyjmuje wartość 1 (Up). W modelu regresji logistycznej przyjmuje się, że
+
+$\pi(x) = \frac{\exp(\alpha + \beta x)}{1 + \exp(\alpha + \beta x)}$
+
+Wprowadźmy definicje funkcji logistic oraz logit:
+
+$\text{logistic}(\pi(x)) = \frac{\exp(\pi(x))}{1 + \exp(\pi(x))}$
+
+$\text{logit}(\pi(x)) = \text{logistic}^{-1}(\pi(x)) = \log\left(\frac{\pi(x)}{1 - \pi(x)}\right)$
+
+Widać od razu, że 
+
+
+$\text{logit}(\pi(x)) = \log\left(\frac{\pi(x)}{1 - \pi(x)}\right) = \alpha + \beta x$
+
+Występujące powyżej wyrażenie  $\frac{\pi(x)}{1 - \pi(x)}$ nazywamy szansą.
+
+
+
+```{R}
+glm.fit <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Smarket, family=binomial)
+```
+Oto szczegóły.
+```{r}
+summary(glm.fit)
+```
+Model regresji logistycznej możemy zatem zapisać jako:
+
+$\log\left(\frac{\pi(x)}{1 - \pi(x)}\right) = -0.126-0.073074Lag1-0.042301Lag2+0.011085Lag3+0.009359Lag4+0.010313Lag5+0.135441Volume$
+
+Dla każdego współczynnika $\beta_i$, iloraz szans wynosi:
+
+$$
+OR_i = e^{\beta_i}
+$$
+
+$OR_i$ interpretuje, jak zmiana o jednostkę w zmiennej $x_i$ wpływa na szanse sukcesu (dodatnia stopa zwrotu), gdy inne zmienne ($x_j$) są stałe. Możemy zatem policzyć kolejne ilorazy szans:
+
+```{r}
+b_1 <- glm.fit$coefficients[2]
+b_2 <- glm.fit$coefficients[3]
+b_3 <- glm.fit$coefficients[4]
+b_4 <- glm.fit$coefficients[5]
+b_5 <- glm.fit$coefficients[6]
+b_6 <- glm.fit$coefficients[7]
+
+OR_1 <- exp(b_1 )
+OR_2 <- exp(b_2 )
+OR_3 <- exp(b_3 )
+OR_4 <- exp(b_4 )
+OR_5 <- exp(b_5)
+OR_6 <- exp(b_6)
+
+OR_percent_change <- c((OR_1 - 1) * 100, (OR_2 - 1) * 100, (OR_3 - 1) * 100, 
+                       (OR_4 - 1) * 100, (OR_5 - 1) * 100, (OR_6 - 1) * 100)
+
+
+ramka <- data.frame(
+  OR = c(OR_1, OR_2, OR_3, OR_4, OR_5, OR_6),
+  Zmiana_procentowa = OR_percent_change,
+  row.names = c("OR_1", "OR_2", "OR_3", "OR_4", "OR_5", "OR_6")
+)
+ramka
+
+```
+Wnioski:
+
+Dla każdej jednostki wzrostu w Lab1, szanse na dodatnią stopę zwrotu maleją o ok. 7.05%.
+
+Dla każdej jednostki wzrostu w Lab2, szanse na dodatnią stopę zwrotu maleją o ok. 4.14%.
+
+Dla każdej jednostki wzrostu w Lab3, szanse na dodatnią stopę zwrotu rosną o ok. 1.11%.
+
+Dla każdej jednostki wzrostu w Lab4, szanse na dodatnią stopę zwrotu rosną o ok. 0.94%.
+
+Dla każdej jednostki wzrostu w Lab5, szanse na dodatnią stopę zwrotu rosną o ok. 1.04%.
+
+Dla każdej jednostki wzrostu w Volume, szanse na dodatnią stopę zwrotu rosną o ok. 14.5%.
+
+
+
+Dane do przykładu ze szpitalem:
+
+```{r}
+# Dane
+szpital <- c(0, 0, 1, 1)  # Szpital A = 0, Szpital B = 1
+stan <- c("Dobry", "Zły", "Dobry", "Zły")  # Stan zdrowia
+przezycia <- c(594, 1433, 592, 192)  # Liczba przeżytych operacji
+zgony <- c(6, 57, 8, 8)  # Liczba zgonów
+
+# Tworzymy ramkę danych
+dane <- data.frame(szpital, stan, przezycia, zgony)
+dane
+```
+Konstruujemy model
+
+```{r}
+# Regresja logistyczna: szanse przeżycia
+model <- glm(cbind(przezycia, zgony) ~ szpital + stan, family = binomial(link = "logit"), data = dane)
+
+# Podsumowanie modelu
+summary(model)
+
+```
+```{r}
+b_1 <- model$coefficients[2]
+OR_1 <- exp(b_1)
+OR_1
+```
+
+Wynika z tego, że szanse przeżycia są o 12% mniejsze w szpitalu B w porównaniu do szpitala A. Szpital A i B mają podobne wyniki, ale pacjenci w szpitalu A mają nieco większe szanse na przeżycie.
+
+
+
+
+

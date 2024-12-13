@@ -1,0 +1,382 @@
+---
+title: "Analiza Danych - Sprawozdanie 1"
+author:
+  name: Król, Małkowska, Głuc
+  affiliation: Politechnika Krakowska
+subtitle: Rozkład Gamma
+output:
+  html_document:
+    theme: readable
+    df_print: paged
+    toc: true
+    toc_float: true
+---
+```{r}
+library(tidyverse)
+library(ggpubr)
+set.seed(3141592)
+```
+
+# Termin oddania: 17.04.2023 23:59:59
+
+Proszę o wykonanie poniższych zadań w dwu- lub trzyosobowych grupach. Oceniane są przede wszystkim komentarze i wnioski, każdy wykres prosze dobrze opisać i skomentować. 
+
+Uwaga: Zadania oznaczone symoblem * są dodatkowe i można otrzymać za nie punkty za aktywność. 
+
+# Funkcja Gamma Eulera
+
+Funkcja Gamma jest jedną z pierwszych "nieelementarnych" (obok funkcji Gaussa) funkcji jakie poznajemy. W naturalny sposób uogólnia ona pojęcie silni na wszystkie liczby rzeczywiste dodatnie (a nawet zespolone) oprócz zera i ujemnych liczb całkowitych. Jest wiele sposobów jej definicji, najczęstszą (i z naszej perspektywy najbardziej użyteczną) będzie
+\[ \Gamma(x) = \int_0^\infty t^{x -1}e^{-t}dt, \, \rm{dla } \,  x \in (0, \infty). \]
+
+Spoglądnijmy na kluczowe użyteczne własności (chociażby gdyby ktoś chciał wyprowadzić wzory na wartość oczekiwaną i wariancję rozkładu Gamma) tej funkcji.
+
+1. Dla dowolnego $x \in (0, \infty)$ zachodzi $\Gamma(x +1) = x \Gamma(x)$.
+2. $\Gamma(1)=1$.
+3. Dla dowolnego $n \in \mathbb{Z}_+$ zachodzi $\Gamma(n+1) = n!$.
+
+
+# Rozkład Gamma
+
+Zajmijmy się teraz ogólnym przypadkiem rozkładu Gamma. Z punktu widzenia zarówno czystej statystyki matematycznej jak i zastosowań w analizie danych jest to bardzo często występujący rozkład. Jego gęstość dana jest wzorem
+\[ f(x) = \frac{\lambda^k}{\Gamma(k)} x^{k - 1}e^{-\lambda x}, \, \rm{dla}\, x \in (0, \infty), \]
+gdzie $k >0$ oraz $\lambda > 0$ są parametrami. Szczególnym przypadkiem rozkładu Gamma jest rozkład Erlanga, gdzie $k \in \mathbb{Z}_+$. Wartość oczekiwana zmiennej o rozkładzie Gamma wynosi $\frac{k}{\lambda}$, a wariancja $\frac{k}{\lambda^2}$. 
+
+### Zadanie 1
+
+Wygeneruj 3 próby z rozkładu Gamma z wybranymi przez siebie (różnymi) parametrami $k, \lambda$. Porównaj otrzymane średnie i wariancje w próbach z wartościami teoretycznymi. Narysuj histogram każdej z prób i porównaj go z teoretyczną gęstością. Narysuj również teoretyczne dystrybuanty rozważanych zmiennych (najlepiej wszystkie 3 na jednym obrazku dla porównania).
+
+*Wykonaj wykresy pudełkowe prób (najlepiej wszystkie 3 na jednym obrazku).
+Podpowiedź: funkcja facet_wrap() w ggplot.
+
+Podpowiedź: Próbę z rozkładu Gamma generujemy za pomocą funkcji *rgamma()* gdzie *rate = $\lambda$* (lub *scale = $\frac{1}{\lambda}$*) oraz *shape = $k$*. Wartości gęstości rozkładu Gamma otrzymujemy za pomocą polecenia *dgamma()*.
+
+
+1.1 Próby z rozkładu Gamma
+```{r}
+set.seed(3141592)
+proba1 <- rgamma(1000, shape=5, rate=0.5)
+proba2 <- rgamma(1000, shape=2, rate=10)
+proba3 <- rgamma(1000, shape=4, rate=3)
+```
+
+1.2. Porównanie otrzymanych średnich i wariancji w próbach z wartościami teoretycznymi. 
+Średnia teoretyczna w rozkładzie Gamma jest równa $\mu = \frac{k}{\lambda}$. Wariancja natomist $\sigma^2 = \frac{k}{\lambda^2}$.
+```{r}
+srednia_probki1 <- mean(proba1)
+srednia_probki2 <- mean(proba2)
+srednia_probki3 <- mean(proba3)
+
+wariancja_probki1 <- var(proba1)
+wariancja_probki2 <- var(proba2)
+wariancja_probki3 <- var(proba3)
+
+#porównanie wariancji i średnich z próbki z teoretycznymi
+
+teoretyczna_srednia1 <- 5 / 0.5
+teoretyczna_srednia2 <- 2 / 10
+teoretyczna_srednia3 <- 4 / 3
+
+teoretyczna_wariancja1 <- 5 / (0.5^2)
+teoretyczna_wariancja2 <- 2 / (10^2)
+teoretyczna_wariancja3 <- 4 / (3^2)
+
+porownanie_srednich <- tibble(
+  Parametr = c("Próbka 1", "Próbka 2", "Próbka 3"),
+  Teoretyczna_srednia = c(teoretyczna_srednia1, teoretyczna_srednia2, teoretyczna_srednia3),
+  Otrzymana_srednia = c(srednia_probki1, srednia_probki2, srednia_probki3))
+
+porownanie_wariancji <- tibble(
+  Parametr = c("Próbka 1", "Próbka 2", "Próbka 3"),
+  Teoretyczna_wariancja = c(teoretyczna_wariancja1, teoretyczna_wariancja2, teoretyczna_wariancja3),
+  Otrzymana_wariancja = c(wariancja_probki1, wariancja_probki2, wariancja_probki3))
+
+
+porownanie_srednich
+porownanie_wariancji
+
+```
+
+Teoretyczna średnia oraz średnia otrzymana z prób są do siebie zbliżone. Średnia z próbek jest zawsze większa od teoretycznej średniej. Teoretyczna wariancja oraz wariancja otrzymana z próbek są do siebie zbliżone. Wariancja z próbek jest większa od teoretycznej wariancji. Próbka jest więc zgodna z teoretycznym modelem rozkładu Gamma i odzwierciedla ten teoreretyczny model.
+
+
+1.3. Histogramy każdej z prób i porownanie z teoretyczną gęstością.
+```{r}
+
+gamma_proba1 <- as_tibble(proba1) 
+
+gamma_proba2 <- as_tibble(proba2)
+
+gamma_proba3 <- as_tibble(proba3)
+
+
+hist1 <- ggplot(data=gamma_proba1, aes(x=value))+geom_histogram() + ggtitle('Histogram próby z rokładu Gamma z parametrami lambda=0.5, k=5') + xlab('Wartość zmiennej X') + ylab('Częstotliwość')
+hist1
+hist2 <- ggplot(data=gamma_proba2, aes(x=value))+geom_histogram() + ggtitle('Histogram próby z rokładu Gamma z parametrami lambda=10, k=2') + xlab('Wartość zmiennej X') + ylab('Częstotliwość')
+hist2
+hist3 <- ggplot(data=gamma_proba3, aes(x=value))+geom_histogram() + ggtitle('Histogram próby z rokładu Gamma z parametrami lambda=3, k=4') + xlab('Wartość zmiennej X') + ylab('Częstotliwość')
+hist3
+
+
+gammas <- tibble(proba1,
+                 proba2,
+                 proba3)
+
+gamma_pivot <- gammas %>% 
+          pivot_longer(1:3, names_to = "distribution", values_to = "value")
+ggplot(data = gamma_pivot, aes(x=value)) + geom_histogram(bins = 15, fill = "lightblue") +
+  facet_wrap(~distribution, scales = "free") + 
+  theme(panel.background = element_blank())
+
+```
+
+Parametry rozkładu Gamma ($\lambda$ i k) mają wływ na kształt i charakterystyki rozkładu. Na pierwszym histogaramie ($\lambda=0.5$, k=5) rozkład skupiony jest w okolicach niższych wartości. Prawdopodobieństwo dla niższych wartości jest więc większe. Na drugim histogramie ($\lambda=10$, k=2), rozkład ma wyraźny szczyt wokół wartości średniej. Ma też duży ogon. Na trzecim histogramie ($\lambda=2$, k=4) rozkład jest dosyć równomierny. Prametr $\lambda$ wpływa na rozkłd wartości wokół średniej. Im większa $\lambda$, tym rozkład jest bardziej skoncentrowany wokół średniej. Parametr k natomiast wpływa na kształt rozkładu. Im mniejsza wartość k, tym mniej wydłużony jest ogon rozkładu.
+
+
+1.4. Teoretyczne dystrybuanty zmiennych.
+```{r}
+#dystrybuanty
+probaa <- seq(0, 11, length.out = 100)
+probab <- seq(0, 11, length.out = 100)
+probac <- seq(0, 11, length.out = 100)
+
+gamma_cdf1 <- tibble(probaa, cdf = pgamma(probaa, shape = 5))
+gamma_cdf2 <- tibble(probab, cdf = pgamma(probab, shape = 2))
+gamma_cdf3 <- tibble(probac, cdf = pgamma(probac, shape = 4))
+
+ggplot() +
+  geom_line(data = gamma_cdf1, aes(x = probaa, y = cdf, color = "Shape = 5")) +
+  geom_line(data = gamma_cdf2, aes(x = probab, y = cdf, color = "Shape = 2")) +
+  geom_line(data = gamma_cdf3, aes(x = probac, y = cdf, color = "Shape = 4")) +
+  labs(x = "Wartość próbki", y = "Dystrybuanta", title = "Wykresy dystrybuant", color = "Parametr kształtu") +
+  scale_color_manual(values = c("Shape = 5" = "hotpink", 
+                                "Shape = 2" = "blue", 
+                                "Shape = 4" = "green")) +
+  xlim(0, 11) +
+  ylim(0, 1)
+
+```
+
+Wykresy dystrybuant dla różnych próbek różnią się kształtem. Sugeruje to, że parametry w próbkach ($\lambda$, k) były różne. Im mniejszy parametr k, tym szybciej rośnie dystrybuanta. Im wyższe wartości próbki, tym wzrost dystrybuanty jest bardziej liniowy.
+
+*Wykresy pudełkowe prób
+
+```{r}
+proba11<-as_tibble(proba1)
+proba22<-as_tibble(proba2)
+proba33<-as_tibble(proba3)
+
+wykres1 <- ggplot(data=proba11, aes(x=proba1)) + geom_boxplot()+labs(x="próba 1")
+wykres2 <- ggplot(data=proba22, aes(x=proba2)) + geom_boxplot()+labs(x="próba 2")
+wykres3 <- ggplot(data=proba33, aes(x=proba3)) + geom_boxplot()+labs(x="próba 3")
+
+ggarrange(wykres1, wykres2, wykres3, ncol=1,nrow=3)
+```
+
+Pudełka są do siebie podobne. Ich prawe wąsy są zdecydowanie dłuższe od lewych. Dodatkowo, dla każdej próbki pojawiają się prawe odstające. Rozkład danych jest skośny w prawo, co oznacza, że większość wartości jest skupiona bliżej dolnego zakresu, ale niektóre dane są wyjątkowo wysokie. Żadna z próbek nie ma lewych odstających. Oznacza to, że wartości w tej części są bardziej skupione i brak wśród nich skrajnych obserwacji. Z wykresów pudłkowych odczytujemy, że dla pierwszej próbki mediana wynosi około 9, kwartyl pierwszy 7, a kwartyl trzeci 12,5. IQR jest równe 5,5, a zatem dolny wąs wynosi -1,25, a górny 20,75. W próbce drugiej odczytujemy medianę równą około 0,2, pierwszy kwartyl równy około 0,1, trzeci kwartyl równy około 0,27. Zatem dolny wąs wynosi -0,155, a górny 0,525. Dla trzeciej próbki odczytujemy medianę równą około 1,2, kwartyl pierwszy równy około 0,8, a kwartyl trzeci około 1,8. Z tego wynika, że wąs dolny wynosi -0,7, a górny 3,3. Pierwsza próbka ma bardzo szerokie wąsy (od -1,25 do 20,75), co sugeruje potencjalnie dużą zmienność i rozciągnięty rozkład (z możliwymi odstającymi wartościami po prawej stronie). Druga próbka ma bardzo wąskie wąsy (-0,155 do 0,525), co wskazuje na większą stabilność danych i mniejszą zmienność. Trzecia próbka ma umiarkowane wąsy (-0,7 do 3,3), co wskazuje na większą zmienność niż w drugiej próbce, ale mniejszą niż w pierwszej.
+
+### Zadanie 2
+
+Zweryfikuj empirycznie (np. za pomocą wykresu gęstości), że rozkład wykładniczy z parametrem $\lambda$ jest szczególnym przypadkiem rozkładu Gamma z parametrami $\lambda$ i $k=1$.
+
+```{R}
+set.seed(3141529)
+lambda <- 1
+comp_tibble <- tibble(rozklad_wykladniczy = rexp(n=3000, rate=lambda),
+                      rozklad_gamma = rgamma(n=3000, shape=1, rate=lambda))
+comp_tibble_piv <- comp_tibble %>% pivot_longer(1:2, names_to = "dist", values_to = "val")
+ggplot(comp_tibble_piv, aes(x=val)) + geom_histogram(bins = 10, fill = "lightpink") +
+  facet_grid(~dist, scales = "free") + 
+  theme(panel.background = element_blank())
+  
+```
+
+Powyższe wykresy są bardzo podobne do siebie, co sugeruje, że rozkład wykładniczy z parametrem $\lambda$ może być szczególnym przypadkiem rozkładu Gamma z parametrami $\lambda$ i $k=1$.
+
+Sprawdzimy to obliczeniami:
+
+Dla $k=1$ gęstość rozkładu Gamma jest równa:
+\[ f(x) = \frac{\lambda^1}{\Gamma(1)} x^{1-1}e^{-\lambda x}, \, \rm{dla}\, x \in (0, \infty). \] Po przekształceniach otrzymujemy:
+\[ f(x) = \lambda e^{-\lambda x}, \, \rm{dla}\, x \in (0, \infty), \] co jest równe gęstości rozkładu wykładniczego.
+
+### Zadanie 3
+
+Zweryfikuj empirycznie (np. za pomocą wykresów gęstości), że suma $k$ niezależnych zmiennych o rozkładzie wykładniczym z tym samym parametrem $\lambda$ ma rozkład Gamma z parametrami $\lambda$, $k$.
+```{r}
+
+lambda <- 10  
+k <- 50       
+n <- 10000    
+liczba_prob <- 4 
+
+for (i in 1:liczba_prob) {
+  set.seed(314 + i) 
+
+  suma <- numeric(n)
+  for (j in 1:k) {
+    suma <- suma + rexp(n, rate = lambda)
+  }
+  suma1 <- as_tibble(suma)
+  
+  probka <- rgamma(n, shape = k, rate = lambda)
+  probka1 <- as_tibble(probka)
+
+  wykres1 <- ggplot(suma1, aes(x = suma)) +
+    geom_histogram(fill = "green", bins = 50) +
+    labs(title = paste0("Suma zmiennych wykładniczych (Próba ", i, ")"),
+         x = "Wartości", y = "Liczebność") +
+    theme_minimal()
+  
+
+  wykres2 <- ggplot(probka1, aes(x = probka)) +
+    geom_histogram(fill = "hotpink", bins = 50) +
+    labs(title = paste0("Rozkład Gamma (Próba ", i, ")"),
+         x = "Wartości", y = "Liczebność") +
+    theme_minimal()
+  
+  print(ggarrange(wykres1, wykres2, ncol = 2, nrow = 1))
+}
+
+```
+
+Powyższe wykresy są do siebie bardzo podobne. Na wszystkich obrazkach na obydwu histogramach można zauważyć, że najwięcej wartości przyjmowanych jest dla liczby 5, czyli średnia wynosi około 5. Oprócz tego, są stosunkowo strome i można powiedzieć, że symetryczne, pomimo tego, że mają odrobinę dłuższe prawe ogony. Empiryczny histogram sumy rozkładów wykładniczych jest oszacowaniem teoretycznej gęstości rozkładu Gamma, co oznacza, że suma $k$ niezależnych zmiennych o rozkładzie wykładniczym z tym samym parametrem $\lambda$ może mieć rozkład Gamma z parametrami $\lambda$, $k$.
+
+### Zadanie 4
+
+Zweryfikuj empirycznie (np. za pomocą wykresów gęstości) stwierdzenie, że jeżeli zmienna $X$ ma rozkład Gamma z parametrami $\lambda$,$k$, to zmienna $cX$ (dla pewnego $c>0$) ma rozkład Gamma o parametrach $\frac{\lambda}{c}$, $k$. 
+```{r}
+lambda
+k
+c = 4 
+gamma_samples <- rgamma(n = n, shape = k, rate = lambda)  
+scaled_gamma_samples <- rgamma(n = n, shape = k, rate = lambda / c)  
+scaled_gamma_samples2 <- c * gamma_samples  
+
+compp_tibble <- tibble(
+  scaled_gamma = scaled_gamma_samples,
+  scaled_gamma2 = scaled_gamma_samples2
+)
+
+
+compp_tibble_piv <- compp_tibble %>% pivot_longer(1:2, names_to = "dist", values_to = "val")
+
+
+generuj_wykresy <- function(seed) {
+  set.seed(seed)
+  
+
+  gamma_samples <- rgamma(n = n, shape = k, rate = lambda)
+  scaled_gamma_samples <- rgamma(n = n, shape = k, rate = lambda / c)
+  scaled_gamma_samples2 <- c * gamma_samples
+  
+
+  compp_tibble <- tibble(
+    scaled_gamma = scaled_gamma_samples,
+    scaled_gamma2 = scaled_gamma_samples2
+  )
+  
+
+  compp_tibble_piv <- compp_tibble %>% pivot_longer(1:2, names_to = "dist", values_to = "val")
+  
+
+  wykres <- ggplot(compp_tibble_piv, aes(x = val, fill = dist)) +
+    geom_histogram(bins = 20, alpha = 0.6) +
+    facet_grid(~dist, scales = "free") +
+    labs(title = paste0("Porównanie skalowania rozkładu Gamma (Próba ", seed, ")"),
+         x = "Wartości", y = "Liczebność") +
+    theme_minimal()
+  
+  return(wykres)
+}
+
+
+set_seeds <- c(314, 159, 265, 358)  
+wszystkie_wykresy <- lapply(set_seeds, generuj_wykresy)
+
+
+for (wykres in wszystkie_wykresy) {
+  print(wykres) 
+}
+```
+
+Na powższych obrazkach obserwujemy podobieństwo w wyglądzie wykresów, wygenerowanych na podstawie próbki rekordów z rozkładu Gamma przeskalowanego przez stałą c oraz rozkładu gamma z parametrami $\frac{\lambda}{c}$, $k$. Niewielkie zmiany w różnicy histogramów sugerują niewielkie różnice w danych pochodzących z wygenerowanej próbki, jednak rozkład ich gęstości jest w przybliżeniu jednakowy. To dowodzi w empiryczny sposób, że jeżeli zmienna $X$ ma rozkład Gamma z parametrami $\lambda$,$k$, to zmienna $cX$ (dla pewnego $c>0$) ma rozkład Gamma o parametrach $\frac{\lambda}{c}$, $k$. 
+### Zadanie 5*
+
+Porównaj próby z rozkładu Gamma z ustalonym parametrem $\lambda$ i *dużymi* parametrami $k$ (proponuje $k > 50$) i próby z rozkładu normalnego ze średnią $\frac{k}{\lambda}$ i wariancją $\frac{k}{\lambda^2}$.
+```{r}
+set.seed(3141592)
+n1=10000
+lambda1=50
+k1=100
+k2=500
+k3=1000
+k4=10000
+
+probkag1 <- rgamma(n1, shape=k1, rate=lambda1)
+probkag11 <- as_tibble(probkag1)
+probkag2 <- rgamma(n1, shape=k2, rate=lambda1)
+probkag22 <- as_tibble(probkag2)
+probkag3 <- rgamma(n1, shape=k3, rate=lambda1)
+probkag33 <- as_tibble(probkag3)
+probkag4 <- rgamma(n1, shape=k4, rate=lambda1)
+probkag44 <- as_tibble(probkag4)
+
+probkan1 <- rnorm(n1, mean=k1/lambda1, sd=k1/lambda1**2)
+probkan11 <- as_tibble(probkan1)
+probkan2 <- rnorm(n1, mean=k2/lambda1, sd=k2/lambda1**2)
+probkan22 <- as_tibble(probkan2)
+probkan3 <- rnorm(n1, mean=k3/lambda1, sd=k3/lambda1**2)
+probkan33 <- as_tibble(probkan3)
+probkan4 <- rnorm(n1, mean=k4/lambda1, sd=k4/lambda1**2)
+probkan44 <- as_tibble(probkan4)
+
+wykresg1 <- ggplot(data=probkag11, aes(x=probkag1))+geom_histogram(fill="hotpink",bins=50)+labs(title="Rozkład Gamma dla k=100",x="Liczebność",y="Gęstość")
+wykresn1 <-ggplot(data=probkan11, aes(x =probkan1))+geom_histogram(fill="green",bins=50)+labs(title="Rozkład normalny dla k=100", x="Liczebność",y="Gęstość")
+ggarrange(wykresg1,wykresn1, nrow=1,ncol=2)
+
+wykresg2 <- ggplot(data=probkag22, aes(x=probkag2))+geom_histogram(fill="hotpink",bins=50)+labs(title="Rozkład Gamma dla k=500",x="Liczebność",y="Gęstość")
+wykresn2 <-ggplot(data=probkan22, aes(x =probkan2))+geom_histogram(fill="green",bins=50)+labs(title="Rozkład normalny dla k=500", x="Liczebność",y="Gęstość")
+ggarrange(wykresg2,wykresn2, nrow=1,ncol=2)
+
+wykresg3 <- ggplot(data=probkag33, aes(x=probkag3))+geom_histogram(fill="hotpink",bins=50)+labs(title="Rozkład Gamma dla k=1000",x="Liczebność",y="Gęstość")
+wykresn3 <-ggplot(data=probkan33, aes(x =probkan3))+geom_histogram(fill="green",bins=50)+labs(title="Rozkład normalny dla k=1000", x="Liczebność",y="Gęstość")
+ggarrange(wykresg3,wykresn3, nrow=1,ncol=2)
+
+wykresg4 <- ggplot(data=probkag44, aes(x=probkag4))+geom_histogram(fill="hotpink",bins=50)+labs(title="Rozkład Gamma dla k=10000",x="Liczebność",y="Gęstość")
+wykresn4 <-ggplot(data=probkan44, aes(x =probkan4))+geom_histogram(fill="green",bins=50)+labs(title="Rozkład normalny dla k=10000", x="Liczebność",y="Gęstość")
+ggarrange(wykresg4,wykresn4, nrow=1,ncol=2)
+```
+
+Z powyższych wykresów odczytujemy, że gęstości są do siebie bardzo podobne. Wykresy są raczej symetryczne. Przy zmianie parametru $k$, zmienia się skala. Wykresy mają bardzo podobną skalę. Pomimo niedużych różnic w wyglądzie histogramów, dla każdej wielkości parametru $k$, można powiedzieć, że mają podobne gęstości, a co za tym idzie, rozkłady. Zatem można się domyślać, że rozkład normalny ze średnią $\frac{k}{\lambda}$ i wariancją $\frac{k}{\lambda^2}$ jest dobrym przybliżeniem rozkładu Gamma z parametrem $\lambda$ i dużymi parametrami $k$. 
+
+
+```{r}
+wykresm1 <- ggplot(data=probkag11, aes(x=probkag1)) + geom_boxplot()+labs(x="próba z rozkładu Gamma dla k=100")
+wykresr1 <- ggplot(data=probkan11, aes(x=probkan1)) + geom_boxplot()+labs(x="próba z rozkładu normalnego dla k=100")
+
+wykresm2 <- ggplot(data=probkag22, aes(x=probkag2)) + geom_boxplot()+labs(x="próba z rozkładu Gamma dla k=500")
+wykresr2 <- ggplot(data=probkan22, aes(x=probkan2)) + geom_boxplot()+labs(x="próba z rozkładu normalnego dla k=500")
+
+wykresm3 <- ggplot(data=probkag33, aes(x=probkag3)) + geom_boxplot()+labs(x="próba z rozkładu Gamma dla k=1000")
+wykresr3 <- ggplot(data=probkan33, aes(x=probkan3)) + geom_boxplot()+labs(x="próba z rozkładu normalnego dla k=1000")
+
+wykresm4 <- ggplot(data=probkag44, aes(x=probkag4)) + geom_boxplot()+labs(x="próba z rozkładu Gamma dla k=10000")
+wykresr4 <- ggplot(data=probkan44, aes(x=probkan4)) + geom_boxplot()+labs(x="próba z rozkładu normalnego dla k=10000")
+
+ggarrange(wykresm1, wykresr1, ncol=1,nrow=2)
+ggarrange(wykresm2, wykresr2, ncol=1,nrow=2)
+ggarrange(wykresm3, wykresr3, ncol=1,nrow=2)
+ggarrange(wykresm4, wykresr4, ncol=1,nrow=2)
+```
+
+Widać, że wykresy są podobne. Dla próby z rozkładu Gamma, niezależnie od parametru $k$, mediana jest trochę mniejsza niż w przypadku próby z rozkładu normalnego. W każdym przypadku, dla każdego wykresu odczytujemy, że pojawiają się zarówno lewe jak i prawe odstające. Są one stosunkowo symetryczne, jednak nie można mówić o całkowitej symetrii. Można powiedzieć, że wąsy są symetryczne. Przez to, że są tak podobne, można powiedzieć, że rozkład normalny ze średnią $\frac{k}{\lambda}$ i wariancją $\frac{k}{\lambda^2}$ jest dobrym przybliżeniem rozkładu Gamma z parametrem $\lambda$ i dużymi parametrami $k$. Zauważamy, że im większy parametr $k$, tym bardziej wykresy są podobne więc prawdopodobnie im większe $k$, tym lepsze przybliżenie. 
+
+
+
+
+
+
+
+
+
+
+
